@@ -1,1 +1,323 @@
-https://sm-vo-columbus-2026.netlify.app
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SM VO_Columbus 2026</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/babel">
+const { useState, useEffect } = React;
+
+const Trash2 = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>;
+const Plus = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>;
+const Mail = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>;
+const Download = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>;
+const Upload = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4-4m0 0L8 8m4-4v12" /></svg>;
+
+function SMVOColumbus2026() {
+  const [records, setRecords] = useState([]);
+  const [currentTab, setCurrentTab] = useState('dashboard');
+  const [showForm, setShowForm] = useState(false);
+  const [formData, setFormData] = useState({
+    customerName: '',
+    llcName: '',
+    services: { vo: false, phone: false },
+    startDate: '',
+    months: 3,
+    address: '',
+    phone: '',
+  });
+
+  useEffect(() => {
+    const saved = localStorage.getItem('sm-vo-columbus-records');
+    if (saved) setRecords(JSON.parse(saved));
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('sm-vo-columbus-records', JSON.stringify(records));
+  }, [records]);
+
+  const calculateExpiry = (startDate, months) => {
+    const date = new Date(startDate);
+    date.setMonth(date.getMonth() + months);
+    return date;
+  };
+
+  const getDaysUntilExpiry = (expiryDate) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const expiry = new Date(expiryDate);
+    expiry.setHours(0, 0, 0, 0);
+    return Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
+  };
+
+  const calculateMonthlyCost = (services) => {
+    let cost = 0;
+    if (services.vo) cost += 29;
+    if (services.phone) cost += 9;
+    return cost;
+  };
+
+  const getStatusColor = (daysLeft) => {
+    if (daysLeft < 0) return { bg: 'bg-red-100', text: 'text-red-700', badge: '🔴 Quá hạn' };
+    if (daysLeft <= 7) return { bg: 'bg-orange-100', text: 'text-orange-700', badge: '🟠 Sắp tới' };
+    if (daysLeft <= 30) return { bg: 'bg-yellow-100', text: 'text-yellow-700', badge: '🟡 Trong tháng' };
+    return { bg: 'bg-green-100', text: 'text-green-700', badge: '🟢 Bình thường' };
+  };
+
+  const handleAddRecord = (e) => {
+    e.preventDefault();
+    if (!formData.customerName || !formData.llcName || !formData.startDate) {
+      alert('Vui lòng điền đủ thông tin bắt buộc');
+      return;
+    }
+    if (!formData.services.vo && !formData.services.phone) {
+      alert('Vui lòng chọn ít nhất một dịch vụ');
+      return;
+    }
+
+    const expiryDate = calculateExpiry(formData.startDate, formData.months);
+    const newRecord = {
+      id: Date.now(),
+      ...formData,
+      expiryDate: expiryDate.toISOString().split('T')[0],
+      monthlyCost: calculateMonthlyCost(formData.services),
+    };
+
+    setRecords([...records, newRecord]);
+    setFormData({
+      customerName: '',
+      llcName: '',
+      services: { vo: false, phone: false },
+      startDate: '',
+      months: 3,
+      address: '',
+      phone: '',
+    });
+    setShowForm(false);
+  };
+
+  const handleDeleteRecord = (id) => {
+    if (window.confirm('Bạn chắc chắn muốn xoá?')) {
+      setRecords(records.filter(r => r.id !== id));
+    }
+  };
+
+  const handleImportData = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const importedData = JSON.parse(event.target.result);
+        if (Array.isArray(importedData)) {
+          setRecords(importedData);
+          alert('Import thành công!');
+        }
+      } catch (error) {
+        alert('Lỗi: File không hợp lệ');
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleExportData = () => {
+    const dataStr = JSON.stringify(records, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `sm-vo-columbus-backup-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+  };
+
+  const handleExportReport = () => {
+    let report = 'SM VO_Columbus 2026 - Payment Schedule\n' + '='.repeat(50) + '\n\n';
+    records.sort((a, b) => new Date(a.expiryDate) - new Date(b.expiryDate)).forEach(r => {
+      const daysLeft = getDaysUntilExpiry(r.expiryDate);
+      report += `${r.llcName}\n  Customer: ${r.customerName}\n  Services: ${r.services.vo ? 'VO' : ''} ${r.services.phone ? 'Phone' : ''}\n  Monthly Cost: $${r.monthlyCost}\n  Expiry: ${r.expiryDate} (${daysLeft} days)\n\n`;
+    });
+    const blob = new Blob([report], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `sm-vo-columbus-report-${new Date().toISOString().split('T')[0]}.txt`;
+    a.click();
+  };
+
+  const generateEmailTemplate = (record) => {
+    const daysLeft = getDaysUntilExpiry(record.expiryDate);
+    let subject = `VO/Phone Renewal - ${record.llcName}`;
+    let body = `Hello ${record.customerName},\n\nYour VO/Phone service expires on ${record.expiryDate} (${daysLeft} days).\n\nServices: ${record.services.vo ? 'VO ($29/mo) ' : ''}${record.services.phone ? 'Phone ($9/mo)' : ''}\n\nReply to renew.\n\nBest regards,\nCOLUMBUS & CO`;
+    return { subject, body };
+  };
+
+  const Dashboard = () => (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-lg border border-blue-200">
+          <div className="text-3xl font-bold text-blue-700">{records.length}</div>
+          <div className="text-sm text-blue-600">Total LLCs</div>
+        </div>
+        <div className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-lg border border-green-200">
+          <div className="text-3xl font-bold text-green-700">${records.reduce((sum, r) => sum + r.monthlyCost, 0)}</div>
+          <div className="text-sm text-green-600">Monthly Revenue</div>
+        </div>
+        <div className="bg-gradient-to-br from-red-50 to-red-100 p-6 rounded-lg border border-red-200">
+          <div className="text-3xl font-bold text-red-700">{records.filter(r => getDaysUntilExpiry(r.expiryDate) < 0).length}</div>
+          <div className="text-sm text-red-600">Expired</div>
+        </div>
+        <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-6 rounded-lg border border-orange-200">
+          <div className="text-3xl font-bold text-orange-700">{records.filter(r => getDaysUntilExpiry(r.expiryDate) <= 7 && getDaysUntilExpiry(r.expiryDate) >= 0).length}</div>
+          <div className="text-sm text-orange-600">Due Soon</div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const PaymentSchedule = () => (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm border-collapse">
+        <thead className="bg-gray-100 border-b">
+          <tr>
+            <th className="p-2 text-left">LLC Name</th>
+            <th className="p-2 text-left">Customer</th>
+            <th className="p-2 text-left">Services</th>
+            <th className="p-2 text-right">Cost/Month</th>
+            <th className="p-2 text-left">Expiry</th>
+            <th className="p-2 text-center">Days</th>
+          </tr>
+        </thead>
+        <tbody>
+          {records.map(r => {
+            const daysLeft = getDaysUntilExpiry(r.expiryDate);
+            const status = getStatusColor(daysLeft);
+            return (
+              <tr key={r.id} className={`border-b ${status.bg}`}>
+                <td className="p-2">{r.llcName}</td>
+                <td className="p-2">{r.customerName}</td>
+                <td className="p-2">{r.services.vo ? 'VO' : ''} {r.services.phone ? 'Phone' : ''}</td>
+                <td className="p-2 text-right">${r.monthlyCost}</td>
+                <td className="p-2">{r.expiryDate}</td>
+                <td className={`p-2 text-center font-semibold ${status.text}`}>{daysLeft}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+
+  const DeadlineTracker = () => (
+    <div className="space-y-3">
+      {records
+        .sort((a, b) => getDaysUntilExpiry(a.expiryDate) - getDaysUntilExpiry(b.expiryDate))
+        .map(r => {
+          const daysLeft = getDaysUntilExpiry(r.expiryDate);
+          const status = getStatusColor(daysLeft);
+          const email = generateEmailTemplate(r);
+          return (
+            <div key={r.id} className={`p-4 rounded-lg border-2 ${status.bg}`}>
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <div className="font-semibold">{r.llcName}</div>
+                  <div className="text-sm">{r.customerName}</div>
+                </div>
+                <div className={`text-2xl ${status.text}`}>{status.badge}</div>
+              </div>
+              <div className="text-sm mb-3">Expires: {r.expiryDate} ({daysLeft} days)</div>
+              <div className="flex gap-2">
+                <button onClick={() => handleDeleteRecord(r.id)} className="flex items-center gap-1 px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-xs">
+                  <Trash2 /> Delete
+                </button>
+              </div>
+            </div>
+          );
+        })}
+    </div>
+  );
+
+  const DataManagement = () => (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <button onClick={() => document.getElementById('import-file').click()} className="flex items-center justify-center gap-2 px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-semibold">
+          <Upload /> Import Data
+        </button>
+        <input id="import-file" type="file" accept=".json" onChange={handleImportData} className="hidden" />
+        <button onClick={handleExportData} className="flex items-center justify-center gap-2 px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 font-semibold">
+          <Download /> Backup Data
+        </button>
+        <button onClick={handleExportReport} className="flex items-center justify-center gap-2 px-6 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 font-semibold">
+          <Download /> Export Report
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+      <div className="max-w-7xl mx-auto p-4 md:p-6">
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">SM VO_Columbus 2026</h1>
+          <p className="text-lg text-gray-600">Payment & Deadline Management System</p>
+        </div>
+
+        <div className="flex flex-wrap gap-2 mb-8 border-b">
+          {[
+            { id: 'dashboard', label: '📊 Tổng quan' },
+            { id: 'schedule', label: '📅 Lịch thanh toán' },
+            { id: 'deadline', label: '⏰ Deadline tracker' },
+            { id: 'data', label: '📋 Quản lý dữ liệu' },
+          ].map(tab => (
+            <button key={tab.id} onClick={() => setCurrentTab(tab.id)} className={`px-4 py-3 font-medium border-b-2 ${currentTab === tab.id ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-600'}`}>
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {(currentTab === 'dashboard' || currentTab === 'schedule') && (
+          <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-2 px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 font-semibold mb-6">
+            <Plus /> Thêm LLC
+          </button>
+        )}
+
+        {showForm && (
+          <div className="bg-white rounded-lg p-6 border border-gray-200 mb-6">
+            <form onSubmit={handleAddRecord} className="space-y-4">
+              <input type="text" placeholder="Customer Name" value={formData.customerName} onChange={(e) => setFormData({...formData, customerName: e.target.value})} className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
+              <input type="text" placeholder="LLC Name" value={formData.llcName} onChange={(e) => setFormData({...formData, llcName: e.target.value})} className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
+              <input type="date" value={formData.startDate} onChange={(e) => setFormData({...formData, startDate: e.target.value})} className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
+              <select value={formData.months} onChange={(e) => setFormData({...formData, months: parseInt(e.target.value)})} className="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                <option value="3">3 months</option>
+                <option value="6">6 months</option>
+                <option value="12">12 months</option>
+              </select>
+              <label className="flex items-center gap-2"><input type="checkbox" checked={formData.services.vo} onChange={(e) => setFormData({...formData, services: {...formData.services, vo: e.target.checked}})} /> VO Service ($29/month)</label>
+              <label className="flex items-center gap-2"><input type="checkbox" checked={formData.services.phone} onChange={(e) => setFormData({...formData, services: {...formData.services, phone: e.target.checked}})} /> Phone Service ($9/month)</label>
+              <button type="submit" className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-semibold">Add Record</button>
+            </form>
+          </div>
+        )}
+
+        <div className="bg-white rounded-lg p-6 border border-gray-200">
+          {currentTab === 'dashboard' && <Dashboard />}
+          {currentTab === 'schedule' && <PaymentSchedule />}
+          {currentTab === 'deadline' && <DeadlineTracker />}
+          {currentTab === 'data' && <DataManagement />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<SMVOColumbus2026 />);
+    </script>
+</body>
+</html>
